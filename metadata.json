@@ -1,0 +1,6 @@
+{
+  "name": "Katalog WhatsApp",
+  "description": "Aplikasi katalog produk toko yang terintegrasi langsung untuk melakukan pemesanan via WhatsApp, lengkap dengan sistem manajemen admin lokal yang aman.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

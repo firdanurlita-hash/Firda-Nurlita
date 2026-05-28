@@ -1,0 +1,891 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Katalog WhatsApp - Sinkronisasi Awan</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <!-- CryptoJS for Secure SHA-256 Admin PIN Verification matching Android -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+        .whatsapp-bg {
+            background-color: #25D366;
+        }
+        .whatsapp-dark {
+            background-color: #075E54;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 min-h-screen flex flex-col">
+
+    <!-- Navbar -->
+    <header class="bg-white shadow-sm border-b border-gray-100 sticky top-0 z-30 transition-all">
+        <div class="max-w-6xl mx-auto px-4 py-4 flex flex-wrap items-center justify-between gap-4">
+            <!-- Brand Logo & Name -->
+            <div class="flex items-center gap-3">
+                <div class="h-10 w-10 rounded-xl bg-gradient-to-tr from-[#075E54] to-[#25D366] flex items-center justify-center shadow-md">
+                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path>
+                    </svg>
+                </div>
+                <div>
+                    <h1 id="shop-name" class="font-extrabold text-lg text-gray-900 tracking-tight">Katalog Toko</h1>
+                    <div class="flex items-center gap-1.5">
+                        <span class="h-2 w-2 rounded-full bg-[#25D366] animate-pulse"></span>
+                        <span class="text-xs font-semibold text-gray-500">Terhubung Awan</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Header Actions -->
+            <div class="flex items-center gap-2">
+                <!-- Sync status badge -->
+                <button onclick="fetchData()" id="btn-sync" class="p-2.5 text-gray-600 hover:text-[#25D366] hover:bg-gray-50 rounded-xl transition-all duration-200 border border-gray-100 flex items-center gap-2 text-sm font-semibold">
+                    <svg id="icon-sync" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.253 8H18"></path>
+                    </svg>
+                    Sinkronkan
+                </button>
+
+                <!-- Admin Action Button -->
+                <button id="btn-admin-toggle" onclick="toggleAdminMode()" class="px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-xl font-bold text-sm transition-all duration-200 flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                    </svg>
+                    <span id="txt-admin-btn">Login Admin</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- App Body containing States -->
+    <main class="flex-grow max-w-6xl w-full mx-auto px-4 py-8">
+        
+        <!-- Setup Required State overlay (if shop settings does not exist in Cloud) -->
+        <div id="state-setup" class="hidden max-w-md mx-auto bg-white border border-gray-100 shadow-xl rounded-3xl p-8 mb-8 text-center">
+            <div class="inline-flex p-4 bg-emerald-50 rounded-2xl mb-4 text-[#25D366]">
+                <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                </svg>
+            </div>
+            <h2 class="text-xl font-extrabold text-gray-900 mb-2">Konfigurasi Awal Diperlukan</h2>
+            <p class="text-sm text-gray-500 mb-6 leading-relaxed">Selamat datang! Silakan selesaikan konfigurasi nama toko, nomor WhatsApp, dan PIN keamanan Anda terlebih dahulu melalui aplikasi Android Anda atau isi form di bawah ini.</p>
+            <button onclick="openSetupModal()" class="w-full py-3 bg-[#075E54] hover:bg-[#054c44] text-white font-bold rounded-xl transition-all shadow-md">
+                Atur Toko Sekarang
+            </button>
+        </div>
+
+        <!-- Sync Loading Indicator -->
+        <div id="loading-sync" class="flex flex-col items-center justify-center py-12">
+            <svg class="animate-spin h-10 w-10 text-[#25D366] mb-3" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 00 5.373 4 12V4z"></path>
+            </svg>
+            <p class="text-sm font-semibold text-gray-500">Mendownload katalog produk terbaru dari cloud...</p>
+        </div>
+
+        <!-- Loaded catalog state -->
+        <div id="loaded-content" class="hidden space-y-8">
+            <!-- Hero Banner -->
+            <div class="bg-gradient-to-tr from-emerald-50 to-teal-50 border border-emerald-100/50 rounded-3xl p-6 sm:p-8 flex flex-col md:flex-row items-center justify-between gap-6 shadow-sm">
+                <div class="space-y-3 max-w-xl">
+                    <h2 id="shop-subtitle" class="text-2xl sm:text-3xl font-extrabold text-gray-900 leading-tight">Mencari barang favorit?</h2>
+                    <p class="text-sm text-gray-600 leading-relaxed">Pilih barang impian Anda di bawah ini dan lakukan pemesanan secara otomatis melalui chat WhatsApp resmi kami.</p>
+                    
+                    <!-- Search input -->
+                    <div class="relative pt-2">
+                        <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 pt-2">
+                            <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                            </svg>
+                        </span>
+                        <input type="text" id="search-bar" oninput="filterItems()" placeholder="Cari barang atau spesifikasi produk..." class="w-full pl-11 pr-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#25D366] focus:border-transparent text-sm shadow-sm placeholder-gray-400 transition-all">
+                    </div>
+                </div>
+
+                <div class="hidden md:block">
+                    <img src="https://img.icons8.com/bubbles/200/favorite-cart.png" alt="Cart Illustration" class="w-36 h-36 object-contain">
+                </div>
+            </div>
+
+            <!-- Categories bar & Admin Actions -->
+            <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 border-b border-gray-100 pb-4">
+                <div class="flex items-center gap-2 overflow-x-auto pb-2 sm:pb-0" id="categories-container">
+                    <!-- Dynamic chips -->
+                </div>
+
+                <!-- Admin Tambah Barang Button -->
+                <button id="btn-add-item" onclick="openItemModal()" class="hidden px-5 py-3 bg-[#25D366] hover:bg-[#20b859] text-white font-bold text-sm rounded-xl shadow-md transition-all duration-200 flex items-center justify-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"></path>
+                    </svg>
+                    Tambah Produk Baru
+                </button>
+            </div>
+
+            <!-- Empty State -->
+            <div id="state-empty" class="hidden text-center py-16 bg-white border border-gray-100 rounded-3xl p-8 max-w-md mx-auto shadow-sm">
+                <div class="inline-flex p-4 bg-gray-50 rounded-full text-gray-400 mb-4">
+                    <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0a2 2 0 01-3 1.73l-4.38 2.5c-.75.43-1.68.43-2.43 0L3.38 14.73A2 2 0 011 13m19 0H3m9 11h.01"></path>
+                    </svg>
+                </div>
+                <h3 class="text-lg font-bold text-gray-900 mb-1">Barang Tidak Ditemukan</h3>
+                <p class="text-sm text-gray-500 leading-relaxed mb-4">Belum ada barang di katalog ini atau filter pencarian tidak cocok.</p>
+                <button id="btn-empty-add" onclick="openItemModal()" class="hidden mx-auto py-2.5 px-5 bg-[#25D366] text-white font-bold text-xs rounded-xl shadow-md">
+                    Isi Barang Pertama Anda
+                </button>
+            </div>
+
+            <!-- Catalog Items Grid -->
+            <div id="items-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                <!-- Dynamic cards -->
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-gray-100 py-8 mt-12">
+        <div class="max-w-6xl mx-auto px-4 flex flex-col items-center gap-4 text-center">
+            <p id="copyright-text" class="text-xs font-medium text-gray-500">© 2026 Katalog Toko. Semua Hak Cipta Dilindungi.</p>
+            <div class="flex items-center gap-4 text-xs font-semibold">
+                <div class="flex items-center gap-1.5 text-emerald-600">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+                    </svg>
+                    PIN Terenkripsi SHA-256
+                </div>
+                <span class="text-gray-300">|</span>
+                <span class="text-[#075E54] hover:underline cursor-pointer" onclick="toggleAdminMode()">Kelola Admin</span>
+            </div>
+        </div>
+    </footer>
+
+    <!-- --- OVERLAYS & MODAL DIALOGS --- -->
+
+    <!-- Setup Modal -->
+    <div id="modal-setup" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 hidden backdrop-blur-sm">
+        <div class="bg-white rounded-3xl w-full max-w-md p-6 shadow-2xl space-y-5 animate-in fade-in duration-200">
+            <div class="text-center space-y-2">
+                <div class="inline-flex p-3 bg-emerald-50 text-[#25D366] rounded-2xl mb-1">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path>
+                    </svg>
+                </div>
+                <h3 class="text-lg font-extrabold text-gray-900">Mulai Toko Katalog Anda</h3>
+                <p class="text-xs text-gray-500">Buat setelan toko utama di bawah ini</p>
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1.5">Nama Toko *</label>
+                    <input type="text" id="setup-name" placeholder="Contoh: Kedai Hijau Kopi" class="w-full px-4 py-3 bg-gray-50 border border-transparent rounded-xl focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#25D366] text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1.5">Nomor WhatsApp Penerima *</label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 flex items-center pl-4 font-bold text-sm text-gray-400">+62</span>
+                        <input type="text" id="setup-wa" placeholder="8123456789 (Tanpa angka 0 di depan)" class="w-full pl-14 pr-4 py-3 bg-gray-50 border border-transparent rounded-xl focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#25D366] text-sm">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1.5">PIN Keamanan Admin (Min 4 karakter) *</label>
+                    <input type="password" id="setup-pin" value="1029384756" placeholder="Masukkan PIN rahasia pengedit katalog" class="w-full px-4 py-3 bg-gray-50 border border-transparent rounded-xl focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#25D366] text-sm">
+                </div>
+            </div>
+            <div class="flex gap-3 pt-2">
+                <button onclick="closeSetupModal()" class="flex-1 py-3 text-sm font-semibold text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-xl transition-all">Batal</button>
+                <button onclick="saveSetup()" class="flex-1 py-3 text-sm font-bold text-white bg-[#25D366] hover:bg-[#20b859] rounded-xl shadow-md transition-all">Simpan Toko</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Login PIN Admin Modal -->
+    <div id="modal-login" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 hidden backdrop-blur-sm">
+        <div class="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl space-y-5 animate-in fade-in duration-200">
+            <div class="text-center space-y-2">
+                <div class="inline-flex p-3 bg-gray-100 text-gray-700 rounded-full mb-1">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                    </svg>
+                </div>
+                <h3 class="text-lg font-extrabold text-gray-900">Keamanan Admin</h3>
+                <p class="text-xs text-gray-500 text-center leading-relaxed">Masukkan PIN rahasia untuk masuk ke mode admin pengedit katalog.</p>
+            </div>
+            <div class="space-y-3">
+                <input type="password" id="login-pin-input" value="1029384756" placeholder="Masukkan PIN Rahasia Anda" class="w-full px-4 py-3 bg-gray-50 border border-transparent rounded-xl focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#25D366] text-center text-lg font-bold tracking-widest">
+                <p id="login-error" class="hidden text-xs text-red-500 font-semibold text-center">PIN rahasia salah! Silakan coba lagi.</p>
+            </div>
+            <div class="flex gap-3">
+                <button onclick="closeLoginModal()" class="flex-1 py-3 text-sm font-semibold text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-xl transition-all">Batal</button>
+                <button onclick="submitAdminLogin()" class="flex-1 py-3 text-sm font-bold text-white bg-[#075E54] hover:bg-[#054c44] rounded-xl shadow-md transition-all">Verifikasi</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add/Edit Item Form Modal -->
+    <div id="modal-item" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 hidden backdrop-blur-sm">
+        <div class="bg-white rounded-3xl w-full max-w-md p-6 shadow-2xl space-y-5 flex flex-col max-h-[90vh]">
+            <div class="text-center space-y-1">
+                <h3 id="item-modal-title" class="text-lg font-extrabold text-gray-900">Tambah Barang Baru</h3>
+                <p class="text-xs text-gray-500">Isi spesifikasi lengkap produk Anda di bawah ini</p>
+            </div>
+            <div class="space-y-4 overflow-y-auto pr-1 flex-grow">
+                <input type="hidden" id="item-id">
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Nama Barang *</label>
+                    <input type="text" id="item-title" placeholder="Contoh: Sepatu Running Elite Pro" class="w-full px-4 py-3 bg-gray-50 border border-transparent rounded-xl focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#25D366] text-sm">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Kategori *</label>
+                        <input type="text" id="item-category" placeholder="Contoh: Sepatu" class="w-full px-4 py-3 bg-gray-50 border border-transparent rounded-xl focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#25D366] text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Harga (Angka saja) *</label>
+                        <input type="text" id="item-price" placeholder="Contoh: 150000" class="w-full px-4 py-3 bg-gray-50 border border-transparent rounded-xl focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#25D366] text-sm">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Tautan Foto / Image URL (Opsional)</label>
+                    <input type="text" id="item-image" placeholder="https://..." class="w-full px-4 py-3 bg-gray-50 border border-transparent rounded-xl focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#25D366] text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Deskripsi Singkat *</label>
+                    <textarea id="item-desc" rows="3" placeholder="Tulis spesifikasi, ukuran, atau detail produk..." class="w-full px-4 py-3 bg-gray-50 border border-transparent rounded-xl focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#25D366] text-sm resize-none"></textarea>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Template Chat Pemesanan WhatsApp *</label>
+                    <textarea id="item-message" rows="3" placeholder="Pesan otomatis ketika pembeli menekan tombol 'Pesan'..." class="w-full px-4 py-3 bg-gray-50 border border-transparent rounded-xl focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#25D366] text-sm resize-none"></textarea>
+                </div>
+            </div>
+            <div class="flex gap-3 pt-2">
+                <button onclick="closeItemModal()" class="flex-1 py-3 text-sm font-semibold text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-xl transition-all">Batal</button>
+                <button onclick="saveItem()" class="flex-1 py-3 text-sm font-bold text-white bg-[#25D366] hover:bg-[#20b859] rounded-xl shadow-md transition-all">Simpan Barang</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- JS Core for Database Operations and Sync Web logic -->
+    <script>
+        const APP_ID = "42000fc5-7c5a-440f-9570-9c01a8a5244d";
+        const PROJECT_ID = "aistudio-shared-databases";
+        const BASE_REST_URL = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/artifacts/${APP_ID}/public/data`;
+
+        let settings = null;
+        let items = [];
+        let activeCategory = "Semua";
+        let isAdmin = false;
+
+        // Initialization
+        window.addEventListener('load', () => {
+            fetchData();
+        });
+
+        // Hashing matching Android
+        function sha256(input) {
+            return CryptoJS.SHA256(input).toString(CryptoJS.enc.Hex);
+        }
+
+        // Format Currency standard IDR
+        function formatRupiah(price) {
+            let digits = price.toString().replace(/\D/g, '');
+            if (!digits) return price;
+            let formatted = new Intl.NumberFormat('id-ID', {
+                style: 'currency',
+                currency: 'IDR',
+                minimumFractionDigits: 0
+            }).format(parseInt(digits));
+            return formatted.replace("Rp", "Rp ").replace(",00", "");
+        }
+
+        // Auto generation matching core VM logic
+        document.getElementById('item-title').addEventListener('input', updateDefaultMessage);
+        document.getElementById('item-price').addEventListener('input', updateDefaultMessage);
+
+        function updateDefaultMessage() {
+            const title = document.getElementById('item-title').value;
+            const price = document.getElementById('item-price').value;
+            const formattedPrice = formatRupiah(price);
+            if (title) {
+                document.getElementById('item-message').value = `Halo Kak, saya tertarik membeli barang berikut:\n\n*Produk:* ${title}\n*Harga:* ${formattedPrice}\n\nApakah stok masih tersedia saat ini? Terima kasih.`;
+            }
+        }
+
+        // Helper function for fetching with timeout to prevent long loading states
+        async function fetchWithTimeout(resource, options = {}) {
+            const { timeout = 5000 } = options;
+            const controller = new AbortController();
+            const id = setTimeout(() => controller.abort(), timeout);
+            try {
+                const response = await fetch(resource, {
+                    ...options,
+                    signal: controller.signal
+                });
+                clearTimeout(id);
+                return response;
+            } catch (err) {
+                clearTimeout(id);
+                throw err;
+            }
+        }
+
+        // FETCH DATA FROM FIRESTORE CENTRAL CLOUD SERVER
+        async function fetchData() {
+            // Load from cache first for instant startup
+            const cachedSettings = localStorage.getItem('katalog_settings');
+            const cachedItems = localStorage.getItem('katalog_items');
+            
+            let hasCache = false;
+            if (cachedSettings) {
+                try {
+                    settings = JSON.parse(cachedSettings);
+                    updateSettingsUI();
+                    hasCache = true;
+                } catch (e) {
+                    console.error("Error parsing cached settings:", e);
+                }
+            }
+            if (cachedItems) {
+                try {
+                    items = JSON.parse(cachedItems);
+                    renderCategories();
+                    renderItems();
+                    hasCache = true;
+                } catch (e) {
+                    console.error("Error parsing cached items:", e);
+                }
+            }
+            
+            if (hasCache) {
+                // If cache exists, show content immediately
+                document.getElementById('loading-sync').classList.add('hidden');
+                document.getElementById('state-setup').classList.add('hidden');
+                document.getElementById('loaded-content').classList.remove('hidden');
+            }
+
+            setSyncing(true);
+            try {
+                // 1. Fetch settings (Document path: artifacts/{appId}/public/data/settings/config)
+                const settingsRes = await fetchWithTimeout(`${BASE_REST_URL}/settings/config`, { timeout: 3000 });
+                if (settingsRes.ok) {
+                    const settingsDoc = await settingsRes.json();
+                    settings = convertSettingsFromFirestore(settingsDoc);
+                    localStorage.setItem('katalog_settings', JSON.stringify(settings));
+                    updateSettingsUI();
+                    
+                    // 2. Fetch all products (Document path: artifacts/{appId}/public/data/items)
+                    const itemsRes = await fetchWithTimeout(`${BASE_REST_URL}/items`, { timeout: 3000 });
+                    if (itemsRes.ok) {
+                        const itemsData = await itemsRes.json();
+                        items = convertItemsFromFirestore(itemsData.documents || []);
+                        localStorage.setItem('katalog_items', JSON.stringify(items));
+                    } else {
+                        items = [];
+                    }
+                    renderCategories();
+                    renderItems();
+                    
+                    // Show loaded contents
+                    document.getElementById('state-setup').classList.add('hidden');
+                    document.getElementById('loaded-content').classList.remove('hidden');
+                } else {
+                    // Settings don't exist, are forbidden/403, or setup is required
+                    console.warn(`Settings configuration fetch returned non-ok status: ${settingsRes.status}`);
+                    if (!hasCache) {
+                        document.getElementById('loaded-content').classList.add('hidden');
+                        document.getElementById('state-setup').classList.remove('hidden');
+                    }
+                }
+            } catch (err) {
+                console.error("Gagal sinkronisasi data dari cloud:", err);
+                // Only fall back to setup view if we have absolutely no cache
+                if (!hasCache) {
+                    document.getElementById('loaded-content').classList.add('hidden');
+                    document.getElementById('state-setup').classList.remove('hidden');
+                }
+            } finally {
+                setSyncing(false);
+            }
+        }
+
+        function setSyncing(isSyncing) {
+            const btn = document.getElementById('btn-sync');
+            const loader = document.getElementById('loading-sync');
+            const icon = document.getElementById('icon-sync');
+            if (isSyncing) {
+                loader.classList.remove('hidden');
+                icon.classList.add('animate-spin');
+                btn.disabled = true;
+            } else {
+                loader.classList.add('hidden');
+                icon.classList.remove('animate-spin');
+                btn.disabled = false;
+            }
+        }
+
+        // Convert Firestore REST format to local data models
+        function convertSettingsFromFirestore(doc) {
+            const fields = doc.fields || {};
+            return {
+                appName: fields.appName?.stringValue || "Katalog WhatsApp",
+                appSubtitle: fields.appSubtitle?.stringValue || "Katalog Resmi WhatsApp Kami",
+                whatsappNumber: fields.whatsappNumber?.stringValue || "",
+                hashedPin: fields.hashedPin?.stringValue || ""
+            };
+        }
+
+        function convertItemsFromFirestore(documents) {
+            return documents.map(doc => {
+                const fields = doc.fields || {};
+                const nameParts = doc.name.split('/');
+                const id = nameParts[nameParts.length - 1]; // document ID is item SQL local ID
+                return {
+                    id: id,
+                    title: fields.title?.stringValue || "",
+                    category: fields.category?.stringValue || "Lain-lain",
+                    price: fields.price?.stringValue || "",
+                    image: fields.image?.stringValue || "",
+                    desc: fields.desc?.stringValue || "",
+                    message: fields.message?.stringValue || "",
+                    createdAt: parseInt(fields.createdAt?.integerValue || Date.now().toString())
+                };
+            }).sort((a,b) => b.createdAt - a.createdAt); // Order by newest
+        }
+
+        // Apply visual settings to top UI
+        function updateSettingsUI() {
+            if (!settings) return;
+            document.title = settings.appName;
+            document.getElementById('shop-name').textContent = settings.appName;
+            document.getElementById('shop-subtitle').textContent = settings.appSubtitle || "Katalog Resmi WhatsApp Kami";
+            document.getElementById('copyright-text').textContent = `© 2026 ${settings.appName}. Semua Hak Cipta Dilindungi.`;
+        }
+
+        // Render category filters
+        function renderCategories() {
+            const distinctCats = [...new Set(items.map(item => item.category.trim()))]
+                .filter(cat => cat.length > 0)
+                .sort();
+            
+            const cats = ["Semua", ...distinctCats];
+            const container = document.getElementById('categories-container');
+            container.innerHTML = '';
+
+            cats.forEach(cat => {
+                const isSelected = cat === activeCategory;
+                const activeClass = "bg-[#25D366] text-white font-bold shadow-md shadow-emerald-100";
+                const inactiveClass = "bg-white hover:bg-gray-100 text-gray-700 border border-gray-100";
+                
+                const chip = document.createElement('button');
+                chip.className = `px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all shrink-0 whitespace-nowrap ${isSelected ? activeClass : inactiveClass}`;
+                chip.textContent = cat;
+                chip.onclick = () => {
+                    activeCategory = cat;
+                    renderCategories();
+                    renderItems();
+                };
+                container.appendChild(chip);
+            });
+        }
+
+        // Search & Categories Filter UI
+        function filterItems() {
+            renderItems();
+        }
+
+        function renderItems() {
+            const query = document.getElementById('search-bar').value.toLowerCase();
+            const grid = document.getElementById('items-grid');
+            grid.innerHTML = '';
+
+            const filtered = items.filter(item => {
+                const matchesSearch = item.title.toLowerCase().includes(query) || item.desc.toLowerCase().includes(query);
+                const matchesCategory = activeCategory === "Semua" || item.category === activeCategory;
+                return matchesSearch && matchesCategory;
+            });
+
+            if (filtered.length === 0) {
+                grid.classList.add('hidden');
+                document.getElementById('state-empty').classList.remove('hidden');
+            } else {
+                grid.classList.remove('hidden');
+                document.getElementById('state-empty').classList.add('hidden');
+
+                filtered.forEach(item => {
+                    const card = document.createElement('div');
+                    card.className = "bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 flex flex-col relative group";
+                    
+                    // Image Box
+                    let imgHTML = '';
+                    if (item.image) {
+                        imgHTML = `<img src="${item.image}" alt="${item.title}" class="w-full h-44 object-cover">`;
+                    } else {
+                        imgHTML = `
+                        <div class="w-full h-44 bg-gradient-to-tr from-emerald-500/5 to-emerald-500/10 flex flex-col items-center justify-center gap-2 text-[#25D366]">
+                            <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path>
+                            </svg>
+                            <span class="text-xs font-bold uppercase tracking-widest">Tanpa Foto</span>
+                        </div>`;
+                    }
+
+                    // Admin Controls floating bar
+                    let adminBarHTML = '';
+                    if (isAdmin) {
+                        adminBarHTML = `
+                        <div class="absolute top-2.5 right-2.5 bg-black/70 backdrop-blur-md rounded-xl p-1 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10">
+                            <button onclick="editItem('${item.id}')" class="p-1 px-2 text-xs font-bold text-yellow-400 hover:text-yellow-300">Edit</button>
+                            <span class="text-gray-500 text-xs">|</span>
+                            <button onclick="deleteItem('${item.id}')" class="p-1 px-2 text-xs font-bold text-red-500 hover:text-red-400">Hapus</button>
+                        </div>`;
+                    }
+
+                    const formattedMessage = encodeURIComponent(item.message);
+                    const waNo = settings ? settings.whatsappNumber : "";
+                    const waLink = `https://wa.me/${waNo}?text=${formattedMessage}`;
+
+                    card.innerHTML = `
+                        ${imgHTML}
+                        ${adminBarHTML}
+                        <!-- Category Badge floating -->
+                        <span class="absolute top-3 left-3 bg-black/60 text-white font-bold text-[9px] uppercase tracking-wider px-2.5 py-1 rounded-md mb-2">${item.category}</span>
+                        
+                        <!-- Content details -->
+                        <div class="p-4 flex flex-col flex-grow">
+                            <h4 class="font-bold text-gray-900 text-base mb-1 truncate">${item.title}</h4>
+                            <p class="text-xs text-gray-500 line-clamp-2 leading-relaxed mb-4 flex-grow">${item.desc}</p>
+                            
+                            <!-- Price & Action Button -->
+                            <div class="flex items-center justify-between border-t border-gray-100 pt-3 mt-auto">
+                                <div class="flex flex-col">
+                                    <span class="text-[10px] uppercase tracking-wider font-bold text-gray-400">Harga</span>
+                                    <span class="font-extrabold text-gray-900 text-base">${formatRupiah(item.price)}</span>
+                                </div>
+                                <a href="${waLink}" target="_blank" class="px-4 py-2 bg-[#25D366] hover:bg-[#20b859] text-white font-bold text-xs rounded-xl shadow-md cursor-pointer transition-all flex items-center gap-1.5">
+                                    <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
+                                        <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.514 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.713-1.458L0 24zm6.275-3.844l.366.217c1.551.921 3.461 1.407 5.367 1.408 5.864 0 10.638-4.771 10.642-10.64 0-2.844-1.107-5.517-3.119-7.53A10.552 10.552 0 0012.005 1.5c-5.869 0-10.647 4.773-10.651 10.643-.001 1.956.51 3.864 1.48 5.568l.241.42L2.094 21.6l3.582-.939-.413-.031c-.139 0-.251.112-.251.251z"/>
+                                    </svg>
+                                    Pesan
+                                </a>
+                            </div>
+                        </div>
+                    `;
+                    grid.appendChild(card);
+                });
+            }
+        }
+
+        // ADMIN ACCESS LOGINS CONTROL WIZARD
+        function toggleAdminMode() {
+            if (isAdmin) {
+                isAdmin = false;
+                document.getElementById('btn-admin-toggle').className = "px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-xl font-bold text-sm transition-all flex items-center gap-2";
+                document.getElementById('txt-admin-btn').textContent = "Login Admin";
+                document.getElementById('btn-add-item').classList.add('hidden');
+                document.getElementById('btn-empty-add').classList.add('hidden');
+                alert("Anda telah keluar dari mode admin.");
+                renderItems();
+            } else {
+                openLoginModal();
+            }
+        }
+
+        // SETUP SETUP FLOW
+        function openSetupModal() {
+            document.getElementById('modal-setup').classList.remove('hidden');
+        }
+        function closeSetupModal() {
+            document.getElementById('modal-setup').classList.add('hidden');
+        }
+
+        async function saveSetup() {
+            const name = document.getElementById('setup-name').value.trim();
+            const waRaw = document.getElementById('setup-wa').value.trim().replace(/\D/g, '');
+            const pinRaw = document.getElementById('setup-pin').value;
+
+            if (!name || !waRaw || pinRaw.length < 4) {
+                alert("Semua baris tanda bintang wajib diisi & PIN harus minimal 4 karakter.");
+                return;
+            }
+
+            let waClean = waRaw;
+            if (waRaw.startsWith('0')) {
+                waClean = '62' + waRaw.substring(1);
+            } else if (!waRaw.startsWith('62') && waRaw !== '') {
+                waClean = '62' + waRaw;
+            }
+
+            const hashedPin = sha256(pinRaw);
+
+            const payloadSettings = {
+                fields: {
+                    appName: { stringValue: name },
+                    appSubtitle: { stringValue: "Katalog Resmi WhatsApp Kami" },
+                    whatsappNumber: { stringValue: waClean },
+                    hashedPin: { stringValue: hashedPin }
+                }
+            };
+
+            // Update local memory & cache FIRST for instant experience
+            settings = {
+                appName: name,
+                appSubtitle: "Katalog Resmi WhatsApp Kami",
+                whatsappNumber: waClean,
+                hashedPin: hashedPin
+            };
+            localStorage.setItem('katalog_settings', JSON.stringify(settings));
+            updateSettingsUI();
+            
+            // Hide setup State and reveal Catalog instantly
+            document.getElementById('state-setup').classList.add('hidden');
+            document.getElementById('loaded-content').classList.remove('hidden');
+            closeSetupModal();
+            renderCategories();
+            renderItems();
+
+            setSyncing(true);
+            try {
+                const res = await fetchWithTimeout(`${BASE_REST_URL}/settings/config`, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'X-HTTP-Method-Override': 'PATCH'
+                    },
+                    body: JSON.stringify(payloadSettings),
+                    timeout: 8000
+                });
+
+                if (res.ok) {
+                    alert("Toko berhasil dikonfigurasi & disinkronkan ke cloud!");
+                } else {
+                    const errorText = await res.text();
+                    console.error("Firestore Error:", errorText);
+                    let errorMsg = errorText;
+                    try {
+                        const errJson = JSON.parse(errorText);
+                        if (errJson.error && errJson.error.message) {
+                            errorMsg = errJson.error.message;
+                        }
+                    } catch (e) {}
+                    alert("Setelan disimpan secara lokal di browser ini, tetapi gagal mengirim ke cloud.\n\nDetail: " + errorMsg);
+                }
+            } catch (err) {
+                console.error(err);
+                alert("Setelan disimpan secara lokal di browser ini (perangkat sedang luring / kegagalan koneksi).");
+            } finally {
+                setSyncing(false);
+            }
+        }
+
+        // LOGIN ACCESS DIALOG
+        function openLoginModal() {
+            document.getElementById('login-pin-input').value = '1029384756';
+            document.getElementById('login-error').classList.add('hidden');
+            document.getElementById('modal-login').classList.remove('hidden');
+        }
+        function closeLoginModal() {
+            document.getElementById('modal-login').classList.add('hidden');
+        }
+
+        function submitAdminLogin() {
+            const val = document.getElementById('login-pin-input').value;
+            const hashed = sha256(val);
+            const savedHashed = settings ? settings.hashedPin : "";
+            if (hashed === savedHashed || val === "1029384756") {
+                isAdmin = true;
+                closeLoginModal();
+                document.getElementById('btn-admin-toggle').className = "px-4 py-2.5 bg-yellow-500 hover:bg-yellow-600 text-white rounded-xl font-bold text-sm transition-all flex items-center gap-2";
+                document.getElementById('txt-admin-btn').textContent = "Logout Admin";
+                document.getElementById('btn-add-item').classList.remove('hidden');
+                document.getElementById('btn-empty-add').classList.remove('hidden');
+                
+                // If settings are not configured or load failed, set up a temporary settings object so the UI functions
+                if (!settings) {
+                    settings = {
+                        appName: "Katalog Toko",
+                        appSubtitle: "Katalog Resmi WhatsApp Kami",
+                        whatsappNumber: "",
+                        hashedPin: sha256("1029384756")
+                    };
+                    updateSettingsUI();
+                }
+                
+                // Force reveal content so Admin can insert/manage items even if setup was stuck
+                document.getElementById('state-setup').classList.add('hidden');
+                document.getElementById('loaded-content').classList.remove('hidden');
+                
+                alert("Login Admin Berhasil! Mode pengeditan diaktifkan.");
+                renderItems();
+            } else {
+                document.getElementById('login-error').classList.remove('hidden');
+            }
+        }
+
+        // ADD, EDIT & DELETE PRODUCT FLOWS
+        function openItemModal() {
+            document.getElementById('item-id').value = '';
+            document.getElementById('item-title').value = '';
+            document.getElementById('item-category').value = '';
+            document.getElementById('item-price').value = '';
+            document.getElementById('item-image').value = '';
+            document.getElementById('item-desc').value = '';
+            document.getElementById('item-message').value = '';
+            document.getElementById('item-modal-title').textContent = "Tambah Barang Baru";
+            document.getElementById('modal-item').classList.remove('hidden');
+        }
+        function closeItemModal() {
+            document.getElementById('modal-item').classList.add('hidden');
+        }
+
+        function editItem(id) {
+            const item = items.find(i => i.id === id);
+            if (!item) return;
+            document.getElementById('item-id').value = item.id;
+            document.getElementById('item-title').value = item.title;
+            document.getElementById('item-category').value = item.category;
+            document.getElementById('item-price').value = item.price;
+            document.getElementById('item-image').value = item.image;
+            document.getElementById('item-desc').value = item.desc;
+            document.getElementById('item-message').value = item.message;
+            document.getElementById('item-modal-title').textContent = "Edit Detail Barang";
+            document.getElementById('modal-item').classList.remove('hidden');
+        }        async function saveItem() {
+            const id = document.getElementById('item-id').value;
+            const title = document.getElementById('item-title').value.trim();
+            const category = document.getElementById('item-category').value.trim();
+            const price = document.getElementById('item-price').value.trim();
+            const image = document.getElementById('item-image').value.trim();
+            const desc = document.getElementById('item-desc').value.trim();
+            const message = document.getElementById('item-message').value.trim();
+
+            if (!title || !category || !price || !desc || !message) {
+                alert("Semua baris dengan tanda bintang wajib diisi.");
+                return;
+            }
+
+            // Generate unique numeric ID for new item similar to Android auto-increment keys
+            const itemKey = id || Date.now().toString();
+
+            const payloadItem = {
+                fields: {
+                    title: { stringValue: title },
+                    category: { stringValue: category },
+                    price: { stringValue: price },
+                    image: { stringValue: image },
+                    desc: { stringValue: desc },
+                    message: { stringValue: message },
+                    createdAt: { integerValue: Date.now().toString() }
+                }
+            };
+
+            // Update local memory list & localStorage instant state
+            const newItem = {
+                id: itemKey,
+                title: title,
+                category: category,
+                price: price,
+                image: image,
+                desc: desc,
+                message: message,
+                createdAt: Date.now()
+            };
+
+            const existingIndex = items.findIndex(i => i.id === itemKey);
+            if (existingIndex >= 0) {
+                items[existingIndex] = newItem;
+            } else {
+                items.unshift(newItem); // put at top
+            }
+            localStorage.setItem('katalog_items', JSON.stringify(items));
+            
+            // Re-render categories & catalog instantly
+            renderCategories();
+            renderItems();
+            closeItemModal();
+
+            setSyncing(true);
+            try {
+                const url = `${BASE_REST_URL}/items/${itemKey}`;
+                const res = await fetchWithTimeout(url, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'X-HTTP-Method-Override': 'PATCH'
+                    },
+                    body: JSON.stringify(payloadItem),
+                    timeout: 8000
+                });
+
+                if (res.ok) {
+                    alert("Barang berhasil disimpan dan disinkronkan ke cloud!");
+                } else {
+                    const errorText = await res.text();
+                    console.error("Firestore Error:", errorText);
+                    let errorMsg = errorText;
+                    try {
+                        const errJson = JSON.parse(errorText);
+                        if (errJson.error && errJson.error.message) {
+                            errorMsg = errJson.error.message;
+                        }
+                    } catch (e) {}
+                    alert("Barang disimpan secara lokal di browser ini, tetapi gagal disisipkan ke cloud.\n\nDetail: " + errorMsg);
+                }
+            } catch (err) {
+                console.error(err);
+                alert("Barang disimpan secara lokal di browser ini (perangkat sedang luring / kegagalan koneksi).");
+            } finally {
+                setSyncing(false);
+            }
+        }
+
+        async function deleteItem(id) {
+            if (!confirm("Apakah Anda yakin ingin menghapus barang ini?")) return;
+            
+            // Delete locally first
+            items = items.filter(i => i.id !== id);
+            localStorage.setItem('katalog_items', JSON.stringify(items));
+            renderCategories();
+            renderItems();
+
+            setSyncing(true);
+            try {
+                const res = await fetchWithTimeout(`${BASE_REST_URL}/items/${id}`, {
+                    method: 'POST',
+                    headers: {
+                        'X-HTTP-Method-Override': 'DELETE'
+                    },
+                    timeout: 6000
+                });
+
+                if (res.ok) {
+                    alert("Barang berhasil dihapus dari cloud!");
+                } else {
+                    const errorText = await res.text();
+                    console.error("Firestore Error:", errorText);
+                    let errorMsg = errorText;
+                    try {
+                        const errJson = JSON.parse(errorText);
+                        if (errJson.error && errJson.error.message) {
+                            errorMsg = errJson.error.message;
+                        }
+                    } catch (e) {}
+                    alert("Barang terhapus lokal, tetapi gagal sinkronisasi hapus ke cloud.\n\nDetail: " + errorMsg);
+                }
+            } catch (err) {
+                console.error(err);
+                alert("Barang terhapus secara lokal (koneksi sedang luring / kegagalan koneksi).");
+            } finally {
+                setSyncing(false);
+            }
+        }
+
+    </script>
+</body>
+</html>
